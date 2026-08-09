@@ -2,6 +2,29 @@
 
 A full-stack safety incident reporting system for high-risk work sites (construction, oil & gas). Frontline workers report hazards, near-misses, and injuries; safety managers triage and track them on a live dashboard, with automatic alerts on high-severity reports.
 
+## Live demo
+
+**[safety-incident-platform.vercel.app](https://safety-incident-platform.vercel.app/)**
+
+Frontend (Vercel) and API/database (Render) are both fully live — sign up as a Worker or a Safety Manager and try the whole flow yourself.
+
+> **Note:** the async alerting piece (Redis + the worker service) only runs in the local Docker Compose setup below, not on the live deploy — Render has no free tier for background workers. Everything else (auth, reporting, the dashboard, role-based access) is fully live and real.
+
+## Screenshots
+
+**Landing page**
+![Landing page](home-page.png)
+
+**Worker — reporting an incident**
+![Worker report view](worker.png)
+
+**Manager — live dashboard**
+![Manager dashboard](manager.png)
+
+## Demo video — alerting in action
+
+<!-- Paste the GitHub-hosted video embed here (drag the file into the GitHub web editor for this README to generate it). -->
+
 ## Architecture
 
 Three independently deployable services, containerized and orchestrated with Docker Compose:
@@ -36,12 +59,14 @@ The API and worker are separate services with independent deploy lifecycles, com
 | Database | PostgreSQL |
 | Queue | Redis (BullMQ) |
 | Containerization | Docker, Docker Compose (multi-stage builds, nginx for static serving) |
+| Deployment | Vercel (frontend), Render (API, Postgres, Redis) |
+| CI | GitHub Actions — lints/builds each service, then a full docker-compose integration smoke test |
 
 ## Features
 
 - JWT authentication with two roles: **Worker** (reports incidents) and **Safety Manager** (triages, updates status, sees analytics)
 - Incident reporting: category, severity, location, description
-- Manager dashboard: live stats, severity breakdown chart, filterable incident table, inline status updates
+- Manager dashboard: live stats, a 14-day incident timeline stacked by severity, filterable incident table, inline status updates
 - Async alerting: high/critical-severity incidents automatically generate a notification via the worker service, surfaced as a live-polling alerts bell in the UI
 - Role-based access control enforced server-side (not just hidden in the UI)
 
@@ -70,7 +95,7 @@ This brings up Postgres, Redis, the API, the worker, and the frontend. Migration
 - Frontend: http://localhost:8080
 - API: http://localhost:4000
 
-Sign up as either a Worker or a Safety Manager from the app's signup screen.
+Sign up as either a Worker or a Safety Manager from the app's signup screen. This is the only way to see the full pipeline end to end, including the worker consuming queue events and generating live alerts.
 
 ## Project structure
 
@@ -80,4 +105,5 @@ apps/
   worker/   Standalone service consuming incident events off Redis
   web/      React frontend
 docker-compose.yml
+render.yaml   Render Blueprint (Postgres + Redis + API)
 ```
