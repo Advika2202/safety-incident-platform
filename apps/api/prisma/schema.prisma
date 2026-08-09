@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WORKER
+  MANAGER
+}
+
+enum Category {
+  NEAR_MISS
+  INJURY
+  HAZARD
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Status {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role       @default(WORKER)
+  createdAt    DateTime   @default(now())
+  incidents    Incident[]
+}
+
+model Incident {
+  id            String         @id @default(uuid())
+  title         String
+  description   String
+  category      Category
+  severity      Severity
+  status        Status         @default(OPEN)
+  location      String?
+  reporter      User           @relation(fields: [reporterId], references: [id])
+  reporterId    String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+}
+
+// Written by the worker service after consuming an "incident.created" event off the queue.
+model Notification {
+  id         String   @id @default(uuid())
+  incident   Incident @relation(fields: [incidentId], references: [id])
+  incidentId String
+  message    String
+  severity   Severity
+  createdAt  DateTime @default(now())
+}
