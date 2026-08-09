@@ -45,6 +45,18 @@ The API and worker are separate services with independent deploy lifecycles, com
 - Async alerting: high/critical-severity incidents automatically generate a notification via the worker service, surfaced as a live-polling alerts bell in the UI
 - Role-based access control enforced server-side (not just hidden in the UI)
 
+## Performance
+
+Load tested with [k6](https://k6.io) at 50 concurrent users (`load-test/incident-load-test.js`). The first run failed its own latency threshold — 0% errors, but p95 latency of 2.47s, caused by an unpaginated list endpoint returning the entire (and growing) incidents table on every request. Fixed with server-side pagination + indexes:
+
+| Metric | Before | After |
+|---|---|---|
+| p95 latency | 2.47s | **15.47ms** |
+| Throughput | 25.7 req/s | 51.5 req/s |
+| Data transferred | 267 MB | 53 MB |
+
+Full writeup: [`load-test/README.md`](load-test/README.md).
+
 ## Running locally
 
 Requires Docker Desktop.

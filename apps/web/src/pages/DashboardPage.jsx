@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth } from "../auth/AuthContext";
@@ -28,6 +28,7 @@ function StatCard({ label, value, accent }) {
 export default function DashboardPage() {
   const { token } = useAuth();
   const [incidents, setIncidents] = useState([]);
+  const [stats, setStats] = useState({ total: 0, byStatus: {}, bySeverity: {} });
   const [filters, setFilters] = useState({ status: "", severity: "", category: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,8 +38,12 @@ export default function DashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await api.listIncidents(token, filters);
+      const [data, statsData] = await Promise.all([
+        api.listIncidents(token, filters),
+        api.getIncidentStats(token),
+      ]);
       setIncidents(data);
+      setStats(statsData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,19 +56,11 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
-  const stats = useMemo(() => {
-    const byStatus = Object.fromEntries(STATUSES.map((s) => [s, 0]));
-    const bySeverity = Object.fromEntries(SEVERITIES.map((s) => [s, 0]));
-    for (const incident of incidents) {
-      byStatus[incident.status] = (byStatus[incident.status] ?? 0) + 1;
-      bySeverity[incident.severity] = (bySeverity[incident.severity] ?? 0) + 1;
-    }
-    return { byStatus, bySeverity };
-  }, [incidents]);
-
+  // Aggregates come from the server (global, unfiltered) — computing these
+  // client-side from the (capped) list would undercount past the page size.
   const chartData = SEVERITIES.map((severity) => ({
     severity,
-    count: stats.bySeverity[severity],
+    count: stats.bySeverity[severity] ?? 0,
   }));
 
   async function handleStatusChange(id, status) {
@@ -86,10 +83,10 @@ export default function DashboardPage() {
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total" value={incidents.length} />
-        <StatCard label="Open" value={stats.byStatus.OPEN} accent="text-blue-600" />
-        <StatCard label="In review" value={stats.byStatus.IN_REVIEW} accent="text-amber-600" />
-        <StatCard label="Resolved" value={stats.byStatus.RESOLVED} accent="text-emerald-600" />
+        <StatCard label="Total" value={stats.total} />
+        <StatCard label="Open" value={stats.byStatus.OPEN ?? 0} accent="text-blue-600" />
+        <StatCard label="In review" value={stats.byStatus.IN_REVIEW ?? 0} accent="text-amber-600" />
+        <StatCard label="Resolved" value={stats.byStatus.RESOLVED ?? 0} accent="text-emerald-600" />
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -151,6 +148,12 @@ export default function DashboardPage() {
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+
+      {incidents.length < stats.total && !filters.status && !filters.severity && !filters.category && (
+        <p className="mt-4 text-xs text-slate-500">
+          Showing the {incidents.length} most recent of {stats.total} incidents.
+        </p>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">

@@ -28,6 +28,7 @@ export const api = {
     ).toString();
     return request(`/incidents${query ? `?${query}` : ""}`, { token });
   },
+  getIncidentStats: (token) => request("/incidents/stats", { token }),
   getIncident: (token, id) => request(`/incidents/${id}`, { token }),
   createIncident: (token, payload) =>
     request("/incidents", { method: "POST", body: payload, token }),

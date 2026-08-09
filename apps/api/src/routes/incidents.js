@@ -33,9 +33,14 @@ router.post("/", requireAuth, async (req, res) => {
   res.status(201).json(incident);
 });
 
-// List incidents, optionally filtered by status/severity/category
+// List incidents, optionally filtered by status/severity/category.
+// Capped and paginated — without this, response size grows unbounded
+// with the table (see load-test/README.md for the load test that caught it).
 router.get("/", requireAuth, async (req, res) => {
   const { status, severity, category } = req.query;
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+
   const incidents = await prisma.incident.findMany({
     where: {
       ...(status && { status }),
@@ -44,8 +49,26 @@ router.get("/", requireAuth, async (req, res) => {
     },
     include: { reporter: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "desc" },
+    take: limit,
+    skip: offset,
   });
   res.json(incidents);
+});
+
+// Aggregate counts computed in the database — never by shipping the
+// full table to the client. Must stay above /:id so Express doesn't
+// treat "stats" as an id param.
+router.get("/stats", requireAuth, requireRole("MANAGER"), async (req, res) => {
+  const [total, byStatusRaw, bySeverityRaw] = await Promise.all([
+    prisma.incident.count(),
+    prisma.incident.groupBy({ by: ["status"], _count: true }),
+    prisma.incident.groupBy({ by: ["severity"], _count: true }),
+  ]);
+
+  const byStatus = Object.fromEntries(byStatusRaw.map((r) => [r.status, r._count]));
+  const bySeverity = Object.fromEntries(bySeverityRaw.map((r) => [r.severity, r._count]));
+
+  res.json({ total, byStatus, bySeverity });
 });
 
 router.get("/:id", requireAuth, async (req, res) => {

@@ -54,6 +54,11 @@ model Incident {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   notifications Notification[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([severity])
+  @@index([category])
 }
 
 // Written by the worker service after consuming an "incident.created" event off the queue.
