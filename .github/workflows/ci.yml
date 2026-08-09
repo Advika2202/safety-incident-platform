@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma validate
+
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/worker/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [api, worker, web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start full stack
+        run: docker compose up -d --build
+
+      - name: Wait for API to become healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4000/health; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy in time"
+          docker compose logs
+          exit 1
+
+      - name: Smoke test — signup, create incident, fetch it back
+        run: |
+          set -e
+          SIGNUP=$(curl -sf -X POST http://localhost:4000/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci@example.com","password":"password123","name":"CI Bot","role":"WORKER"}')
+          TOKEN=$(echo "$SIGNUP" | node -pe "JSON.parse(require('fs').readFileSync(0)).token")
+
+          INCIDENT=$(curl -sf -X POST http://localhost:4000/api/incidents \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"title":"CI test incident","description":"Created during CI smoke test","category":"HAZARD","severity":"CRITICAL"}')
+          INCIDENT_ID=$(echo "$INCIDENT" | node -pe "JSON.parse(require('fs').readFileSync(0)).id")
+
+          curl -sf http://localhost:4000/api/incidents/$INCIDENT_ID \
+            -H "Authorization: Bearer $TOKEN" > /dev/null
+
+      - name: Check frontend is served
+        run: curl -sf http://localhost:8080/ > /dev/null
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
