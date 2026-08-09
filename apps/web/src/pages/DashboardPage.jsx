@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { CategoryBadge, SeverityBadge, StatusBadge } from "../components/Badge";
@@ -28,7 +28,7 @@ function StatCard({ label, value, accent }) {
 export default function DashboardPage() {
   const { token } = useAuth();
   const [incidents, setIncidents] = useState([]);
-  const [stats, setStats] = useState({ total: 0, byStatus: {}, bySeverity: {} });
+  const [stats, setStats] = useState({ total: 0, byStatus: {}, bySeverity: {}, timeline: [] });
   const [filters, setFilters] = useState({ status: "", severity: "", category: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,13 +55,6 @@ export default function DashboardPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
-
-  // Aggregates come from the server (global, unfiltered) — computing these
-  // client-side from the (capped) list would undercount past the page size.
-  const chartData = SEVERITIES.map((severity) => ({
-    severity,
-    count: stats.bySeverity[severity] ?? 0,
-  }));
 
   async function handleStatusChange(id, status) {
     setUpdatingId(id);
@@ -90,19 +83,39 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-sm font-medium text-slate-900">Incidents by severity</p>
-        <div className="mt-2 h-48">
+        <p className="text-sm font-medium text-slate-900">Incidents over the last 14 days, by severity</p>
+        <div className="mt-2 h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
+            <BarChart data={stats.timeline}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="severity" tick={{ fontSize: 12 }} stroke="#94a3b8" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12 }}
+                stroke="#94a3b8"
+                tickFormatter={(date) =>
+                  new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                }
+              />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry) => (
-                  <Cell key={entry.severity} fill={SEVERITY_COLORS[entry.severity]} />
-                ))}
-              </Bar>
+              <Tooltip
+                labelFormatter={(date) =>
+                  new Date(date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                }
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {SEVERITIES.map((severity) => (
+                <Bar
+                  key={severity}
+                  dataKey={severity}
+                  stackId="severity"
+                  fill={SEVERITY_COLORS[severity]}
+                  name={severity}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         </div>

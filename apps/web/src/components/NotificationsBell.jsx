@@ -4,12 +4,18 @@ import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 
 const POLL_INTERVAL_MS = 8000;
+const LAST_SEEN_KEY = "sip_notifications_last_seen";
 
 export default function NotificationsBell() {
   const { token } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
-  const [lastSeenAt, setLastSeenAt] = useState(() => Date.now());
+  // Persisted so a page refresh doesn't silently mark everything "seen" —
+  // only actually opening the bell should do that.
+  const [lastSeenAt, setLastSeenAt] = useState(() => {
+    const stored = localStorage.getItem(LAST_SEEN_KEY);
+    return stored ? Number(stored) : 0;
+  });
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -48,7 +54,11 @@ export default function NotificationsBell() {
 
   function toggleOpen() {
     setOpen((prev) => {
-      if (!prev) setLastSeenAt(Date.now());
+      if (!prev) {
+        const now = Date.now();
+        setLastSeenAt(now);
+        localStorage.setItem(LAST_SEEN_KEY, String(now));
+      }
       return !prev;
     });
   }
@@ -62,8 +72,11 @@ export default function NotificationsBell() {
       >
         🔔
         {unseenCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
-            {unseenCount > 9 ? "9+" : unseenCount}
+          <span className="absolute -right-1 -top-1 flex h-4 w-4">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+              {unseenCount > 9 ? "9+" : unseenCount}
+            </span>
           </span>
         )}
       </button>

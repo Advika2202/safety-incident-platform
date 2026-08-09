@@ -55,20 +55,45 @@ router.get("/", requireAuth, async (req, res) => {
   res.json(incidents);
 });
 
+const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const TIMELINE_DAYS = 14;
+
 // Aggregate counts computed in the database — never by shipping the
 // full table to the client. Must stay above /:id so Express doesn't
 // treat "stats" as an id param.
 router.get("/stats", requireAuth, requireRole("MANAGER"), async (req, res) => {
-  const [total, byStatusRaw, bySeverityRaw] = await Promise.all([
+  const [total, byStatusRaw, bySeverityRaw, timelineRaw] = await Promise.all([
     prisma.incident.count(),
     prisma.incident.groupBy({ by: ["status"], _count: true }),
     prisma.incident.groupBy({ by: ["severity"], _count: true }),
+    prisma.$queryRaw`
+      SELECT DATE_TRUNC('day', "createdAt")::date AS day, severity, COUNT(*)::int AS count
+      FROM "Incident"
+      WHERE "createdAt" >= NOW() - (${TIMELINE_DAYS} || ' days')::interval
+      GROUP BY day, severity
+      ORDER BY day ASC
+    `,
   ]);
 
   const byStatus = Object.fromEntries(byStatusRaw.map((r) => [r.status, r._count]));
   const bySeverity = Object.fromEntries(bySeverityRaw.map((r) => [r.severity, r._count]));
 
-  res.json({ total, byStatus, bySeverity });
+  // Zero-fill every day in the window so the chart doesn't skip gaps.
+  const byDay = new Map();
+  for (let i = TIMELINE_DAYS - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - i);
+    const key = date.toISOString().slice(0, 10);
+    byDay.set(key, { date: key, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 });
+  }
+  for (const row of timelineRaw) {
+    const key = row.day.toISOString().slice(0, 10);
+    if (byDay.has(key) && SEVERITIES.includes(row.severity)) {
+      byDay.get(key)[row.severity] = row.count;
+    }
+  }
+
+  res.json({ total, byStatus, bySeverity, timeline: [...byDay.values()] });
 });
 
 router.get("/:id", requireAuth, async (req, res) => {
