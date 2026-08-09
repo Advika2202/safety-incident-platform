@@ -26,7 +26,6 @@ Frontend (Vercel) and API/database (Render) are both fully live — sign up as a
 
 https://github.com/user-attachments/assets/8ffb2fc6-b166-4a3f-bdf0-cb6ac885b3e9
 
--- Paste the GitHub-hosted video embed here (drag the file into the GitHub web editor for this README to generate it). -->
 
 ## Architecture
 
