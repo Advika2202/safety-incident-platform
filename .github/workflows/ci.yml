@@ -12,6 +12,9 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    env:
+      # Placeholder only — generate/validate parse the schema, they don't connect.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/safety_incident
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
