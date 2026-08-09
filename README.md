@@ -8,7 +8,6 @@ A full-stack safety incident reporting system for high-risk work sites (construc
 
 Frontend (Vercel) and API/database (Render) are both fully live — sign up as a Worker or a Safety Manager and try the whole flow yourself.
 
-> **Note:** the async alerting piece (Redis + the worker service) only runs in the local Docker Compose setup below, not on the live deploy — Render has no free tier for background workers. Everything else (auth, reporting, the dashboard, role-based access) is fully live and real.
 
 ## Screenshots
 
@@ -23,7 +22,11 @@ Frontend (Vercel) and API/database (Render) are both fully live — sign up as a
 
 ## Demo video — alerting in action
 
-<!-- Paste the GitHub-hosted video embed here (drag the file into the GitHub web editor for this README to generate it). -->
+<!
+
+https://github.com/user-attachments/assets/8ffb2fc6-b166-4a3f-bdf0-cb6ac885b3e9
+
+-- Paste the GitHub-hosted video embed here (drag the file into the GitHub web editor for this README to generate it). -->
 
 ## Architecture
 
