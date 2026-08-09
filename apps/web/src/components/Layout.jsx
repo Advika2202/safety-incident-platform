@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import NotificationsBell from "./NotificationsBell";
+import Logo from "./Logo";
 
 const navLinkClass = ({ isActive }) =>
   `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -25,7 +26,7 @@ export default function Layout() {
           <div className="flex items-center gap-8">
             <span className="flex items-center gap-2 text-lg font-semibold text-slate-900">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-                ⛑
+                <Logo />
               </span>
               SiteGuard
             </span>
