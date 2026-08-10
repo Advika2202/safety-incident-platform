@@ -95,7 +95,6 @@ docker compose up --build
 This brings up Postgres, Redis, the API, the worker, and the frontend. Migrations run automatically on API/worker startup.
 
 - Frontend: http://localhost:8080
-- API: http://localhost:4000
 
 Sign up as either a Worker or a Safety Manager from the app's signup screen. This is the only way to see the full pipeline end to end, including the worker consuming queue events and generating live alerts.
 
